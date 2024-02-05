@@ -34,7 +34,7 @@ import os
 import platform
 import sys
 from pathlib import Path
-
+import pickle
 import torch
 
 FILE = Path(__file__).resolve()
@@ -211,6 +211,11 @@ def run(
             if save_img:
                 if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
+                    # this here is to serialize the image itself, or specifically im0, which is a variable that has the values of where the detected objects are.
+# specifically their x,y, and z coordinates. So im0 is a 3D array of points where the boxes will be.
+                    pickleImg = pickle.dumps(im0) # this serializes the im0 data
+                    unpickledImg = pickle.loads(pickleImg) # this deserializes it
+                    print("Unpickled data: ", unpickledImg) # this prints out the deserialized data, this of course is just for testing purposes and proof of concept.
                 else:  # 'video' or 'stream'
                     if vid_path[i] != save_path:  # new video
                         vid_path[i] = save_path
@@ -223,8 +228,14 @@ def run(
                         else:  # stream
                             fps, w, h = 30, im0.shape[1], im0.shape[0]
                         save_path = str(Path(save_path).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
-                        vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                    vid_writer[i].write(im0)
+                        vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h)) # this is an array that is utilized when
+                        # we need to save it as a video. So it gets each frame and appends it to this, and calls a videowriter, and it forces .mp4 to each one.
+# We can't serialize this AFAICT, but we can serialize the value that's being written into the video. This value represents the predicted position of an object.
+# and im0 is represented by a 3D array of coordinates for where it is on the screen. So we can use that to at least get the object's location.
+                    vid_writer[i].write(im0) # writes im0 to the vid writer array. im0 is the predicted result in relation to the video.
+                    pickled_video = pickle.dumps(im0) # we serialize the prediction here
+                    unpickled_video = pickle.loads(pickled_video) # we deserialize it.
+                    print("Pickled data:", unpickled_video) # we print the data for testing purposes and proof of concept
 
         # Print time (inference-only)
         LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms")
